@@ -1,105 +1,82 @@
-name: Generate Offline Plugin Package
+name: Offline Plugin Packaging
 
 on:
   workflow_dispatch:
     inputs:
       source_type:
-        description: '插件来源类型 (difymarket, github)'
+        description: 'Source type of the plugin (market, github, local)'
         required: true
-        default: difymarket
+        default: market
       plugin_author:
-        description: '插件作者 (例如: junjiem)，仅在 source_type 为 difymarket 时需要'
+        description: 'Plugin author (only for "market" source type)'
         required: false
       plugin_name:
-        description: '插件名称 (例如: mcp_sse)，仅在 source_type 为 difymarket 时需要'
+        description: 'Plugin name (only for "market" source type)'
         required: false
       plugin_version:
-        description: '插件版本 (例如: 0.0.1)，仅在 source_type 为 difymarket 时需要'
+        description: 'Plugin version (only for "market" source type)'
         required: false
       github_repo:
-        description: 'GitHub 仓库地址 (例如: junjiem/dify-plugin-tools-dbquery)，仅在 source_type 为 github 时需要'
+        description: 'GitHub repository (e.g., "owner/repo", only for "github" source type)'
         required: false
       release_title:
-        description: 'Release 标题 (例如: v0.0.2)，仅在 source_type 为 github 时需要'
+        description: 'Release title (only for "github" source type)'
         required: false
       assets_name:
-        description: 'Assets 名称 (包含 .difypkg 后缀, 例如: db_query.difypkg)，仅在 source_type 为 github 时需要'
+        description: 'Assets name (only for "github" source type)'
+        required: false
+      local_file_path:
+        description: 'Path to the local file (only for "local" source type)'
         required: false
 
 jobs:
-  generate-offline-package:
+  offline-packaging:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Debugging Inputs
-        run: |
-          echo "SOURCE_TYPE: ${{ github.event.inputs.source_type }}"
-          echo "PLUGIN_AUTHOR: ${{ github.event.inputs.plugin_author }}"
-          echo "PLUGIN_NAME: ${{ github.event.inputs.plugin_name }}"
-          echo "PLUGIN_VERSION: ${{ github.event.inputs.plugin_version }}"
-          echo "GITHUB_REPO: ${{ github.event.inputs.github_repo }}"
-          echo "RELEASE_TITLE: ${{ github.event.inputs.release_title }}"
-          echo "ASSETS_NAME: ${{ github.event.inputs.assets_name }}"
-
-      - name: Install Dependencies
+      - name: Set Up Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y unzip jq curl
+          sudo apt-get install -y curl jq unzip
 
       - name: Validate Inputs
         run: |
-          if [ "${{ github.event.inputs.source_type }}" = "difymarket" ]; then
-            [ -z "${{ github.event.inputs.plugin_author }}" ] && echo "PLUGIN_AUTHOR is required for difymarket" && exit 1
-            [ -z "${{ github.event.inputs.plugin_name }}" ] && echo "PLUGIN_NAME is required for difymarket" && exit 1
-            [ -z "${{ github.event.inputs.plugin_version }}" ] && echo "PLUGIN_VERSION is required for difymarket" && exit 1
+          if [ "${{ github.event.inputs.source_type }}" = "market" ]; then
+            [ -z "${{ github.event.inputs.plugin_author }}" ] && echo "PLUGIN_AUTHOR is required for market source type" && exit 1
+            [ -z "${{ github.event.inputs.plugin_name }}" ] && echo "PLUGIN_NAME is required for market source type" && exit 1
+            [ -z "${{ github.event.inputs.plugin_version }}" ] && echo "PLUGIN_VERSION is required for market source type" && exit 1
           elif [ "${{ github.event.inputs.source_type }}" = "github" ]; then
-            [ -z "${{ github.event.inputs.github_repo }}" ] && echo "GITHUB_REPO is required for github" && exit 1
-            [ -z "${{ github.event.inputs.release_title }}" ] && echo "RELEASE_TITLE is required for github" && exit 1
-            [ -z "${{ github.event.inputs.assets_name }}" ] && echo "ASSETS_NAME is required for github" && exit 1
+            [ -z "${{ github.event.inputs.github_repo }}" ] && echo "GITHUB_REPO is required for github source type" && exit 1
+            [ -z "${{ github.event.inputs.release_title }}" ] && echo "RELEASE_TITLE is required for github source type" && exit 1
+            [ -z "${{ github.event.inputs.assets_name }}" ] && echo "ASSETS_NAME is required for github source type" && exit 1
+          elif [ "${{ github.event.inputs.source_type }}" = "local" ]; then
+            [ -z "${{ github.event.inputs.local_file_path }}" ] && echo "LOCAL_FILE_PATH is required for local source type" && exit 1
           else
-            echo "Invalid SOURCE_TYPE: ${{ github.event.inputs.source_type }}" && exit 1
+            echo "Invalid source_type: ${{ github.event.inputs.source_type }}" && exit 1
           fi
 
-      - name: Download and Repackage Plugin
-        env:
-          SOURCE_TYPE: ${{ github.event.inputs.source_type }}
-          PLUGIN_AUTHOR: ${{ github.event.inputs.plugin_author }}
-          PLUGIN_NAME: ${{ github.event.inputs.plugin_name }}
-          PLUGIN_VERSION: ${{ github.event.inputs.plugin_version }}
-          GITHUB_REPO: ${{ github.event.inputs.github_repo }}
-          RELEASE_TITLE: ${{ github.event.inputs.release_title }}
-          ASSETS_NAME: ${{ github.event.inputs.assets_name }}
+      - name: Execute Offline Packaging
         run: |
-          if [ "$SOURCE_TYPE" = "difymarket" ]; then
-            echo "Downloading plugin from Dify Marketplace..."
-            PACKAGE_NAME="${PLUGIN_AUTHOR}-${PLUGIN_NAME}_${PLUGIN_VERSION}-offline.difypkg"
-            curl -o "$PACKAGE_NAME" "https://marketplace.dify.ai/plugins/download/$PLUGIN_AUTHOR/$PLUGIN_NAME/$PLUGIN_VERSION" || { echo "Failed to download plugin from Dify Marketplace"; exit 1; }
-            echo "Downloaded plugin package: $PACKAGE_NAME"
-          elif [ "$SOURCE_TYPE" = "github" ]; then
-            echo "Downloading plugin from GitHub..."
-            PACKAGE_NAME="${ASSETS_NAME%.difypkg}-${RELEASE_TITLE}-offline.difypkg"
-            curl -o "$PACKAGE_NAME" -L "https://github.com/$GITHUB_REPO/releases/download/$RELEASE_TITLE/$ASSETS_NAME" || { echo "Failed to download plugin from GitHub"; exit 1; }
-            echo "Downloaded plugin package: $PACKAGE_NAME"
-          else
-            echo "Invalid SOURCE_TYPE: $SOURCE_TYPE" && exit 1
+          chmod +x ./plugin_repackaging.sh
+          if [ "${{ github.event.inputs.source_type }}" = "market" ]; then
+            ./plugin_repackaging.sh market "${{ github.event.inputs.plugin_author }}" "${{ github.event.inputs.plugin_name }}" "${{ github.event.inputs.plugin_version }}"
+          elif [ "${{ github.event.inputs.source_type }}" = "github" ]; then
+            ./plugin_repackaging.sh github "${{ github.event.inputs.github_repo }}" "${{ github.event.inputs.release_title }}" "${{ github.event.inputs.assets_name }}"
+          elif [ "${{ github.event.inputs.source_type }}" = "local" ]; then
+            ./plugin_repackaging.sh local "${{ github.event.inputs.local_file_path }}"
           fi
 
-      - name: Verify Package
+      - name: Archive Output
         run: |
-          if [ ! -f "$PACKAGE_NAME" ]; then
-            echo "Package not found: $PACKAGE_NAME"
-            exit 1
-          fi
-          echo "Package verified: $PACKAGE_NAME"
+          mkdir -p output
+          mv *.difypkg ./output/
+          echo "Packaging completed. Output files moved to ./output/"
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.PACKAGE_NAME }}
-          path: ./${{ env.PACKAGE_NAME }}
-
-      - name: Debugging Finalize
-        run: |
-          echo "Workflow executed successfully. Package: $PACKAGE_NAME"
+          name: offline-packages
+          path: ./output/
