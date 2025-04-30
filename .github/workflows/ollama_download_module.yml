@@ -43,7 +43,7 @@ jobs:
           fi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.set-safe-model-name.outputs.safe_model_name }}-model
           path: ${{ steps.set-safe-model-name.outputs.safe_model_name }}.tar.gz    
