@@ -24,21 +24,26 @@ jobs:
       - name: Download Ollama model
         run: ollama pull ${{ github.event.inputs.model_name }}
 
+      - name: Set safe model name
+        id: set-safe-model-name
+        run: |
+          safe_model_name=$(echo "${{ github.event.inputs.model_name }}" | tr ':' '_')
+          echo "safe_model_name=$safe_model_name" >> $GITHUB_OUTPUT
+
       - name: Package the model
         run: |
           model_dir="$HOME/.ollama/models/${{ github.event.inputs.model_name }}"
           if [ -d "$model_dir" ]; then
             mkdir -p models
             cp -r "$model_dir" models/
-            safe_model_name=$(echo "${{ github.event.inputs.model_name }}" | tr ':' '_')
-            tar -czvf "$safe_model_name.tar.gz" models
+            tar -czvf "${{ steps.set-safe-model-name.outputs.safe_model_name }}.tar.gz" models
           else
             echo "Model directory $model_dir not found."
             exit 1
           fi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ github.event.inputs.model_name }}-model
-          path: ${{ github.event.inputs.model_name | replace(':', '_') }}.tar.gz    
+          name: ${{ steps.set-safe-model-name.outputs.safe_model_name }}-model
+          path: ${{ steps.set-safe-model-name.outputs.safe_model_name }}.tar.gz    
