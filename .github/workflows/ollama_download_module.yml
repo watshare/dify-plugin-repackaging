@@ -21,20 +21,37 @@ jobs:
           chmod +x install.sh
           sudo ./install.sh
 
+      - name: Create custom model directory
+        run: |
+          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
+          mkdir -p "$CUSTOM_MODEL_DIR"
+          echo "Created custom model directory: $CUSTOM_MODEL_DIR"
+
+      - name: Modify Ollama service configuration
+        run: |
+          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
+          sudo sed -i '/^\[Service\]/a Environment="OLLAMA_MODELS='"$CUSTOM_MODEL_DIR"'"' /etc/systemd/system/ollama.service
+          sudo systemctl daemon-reload
+          sudo systemctl restart ollama
+          echo "Updated Ollama service to use $CUSTOM_MODEL_DIR for model storage"
+
+      - name: Debug - Show Ollama service configuration
+        run: cat /etc/systemd/system/ollama.service
+
       - name: Download Ollama model
         run: ollama pull ${{ github.event.inputs.model_name }}
 
       - name: Debug - List all Ollama models
         run: ollama list
 
-      - name: Debug - List default Ollama models directory
+      - name: Debug - List custom model directory
         run: |
-          default_model_dir="$HOME/.ollama/models"
-          if [ -d "$default_model_dir" ]; then
-            echo "Contents of $default_model_dir:"
-            ls -l "$default_model_dir"
+          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
+          if [ -d "$CUSTOM_MODEL_DIR" ]; then
+            echo "Contents of $CUSTOM_MODEL_DIR:"
+            ls -l "$CUSTOM_MODEL_DIR"
           else
-            echo "Default Ollama models directory $default_model_dir not found."
+            echo "Custom model directory $CUSTOM_MODEL_DIR not found."
           fi
 
       - name: Check if model is downloaded
@@ -53,10 +70,10 @@ jobs:
       - name: Find model directory
         id: find-model-dir
         run: |
-          # Use wildcard for fuzzy matching
-          model_dir=$(find $HOME -type d -name "*$(echo ${{ github.event.inputs.model_name }} | tr -d ':')*" 2>/dev/null | head -n 1)
+          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
+          model_dir=$(find "$CUSTOM_MODEL_DIR" -type d -name "*$(echo ${{ github.event.inputs.model_name }} | tr -d ':')*" 2>/dev/null | head -n 1)
           if [ -z "$model_dir" ]; then
-            echo "Model directory not found."
+            echo "Model directory not found in $CUSTOM_MODEL_DIR."
             exit 1
           fi
           echo "model_dir=$model_dir" >> $GITHUB_OUTPUT
