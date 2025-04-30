@@ -1,0 +1,37 @@
+name: Ollama Model Download and Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: 'Name of the Ollama model to download'
+        required: true
+        type: string
+
+jobs:
+  download-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Ollama
+        run: |
+          wget https://ollama.com/install.sh
+          chmod +x install.sh
+          sudo ./install.sh
+
+      - name: Download Ollama model
+        run: ollama pull ${{ github.event.inputs.model_name }}
+
+      - name: Package the model
+        run: |
+          mkdir -p models
+          ollama list -o json | jq -r '.[] | select(.name == "${{ github.event.inputs.model_name }}") | .path' | xargs -I {} cp -r {} models/
+          tar -czvf ${{ github.event.inputs.model_name }}.tar.gz models
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.model_name }}-model
+          path: ${{ github.event.inputs.model_name }}.tar.gz    
