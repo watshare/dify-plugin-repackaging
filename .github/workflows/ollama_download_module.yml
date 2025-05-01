@@ -26,10 +26,8 @@ jobs:
         ollama pull ${MODEL_NAME}
 
     - name: Package the model
-      env:
-        MODEL_PATH: /usr/share/ollama/.ollama/models/
       run: |
-        tar -czvf models.tar.gz /usr/share/ollama/.ollama/models/
+        tar -czvf models.tar.gz /usr/share/ollama/.ollama/models
 
     - name: Upload the package as an artifact
       uses: actions/upload-artifact@v4
