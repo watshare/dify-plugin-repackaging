@@ -33,7 +33,7 @@ jobs:
         tar -czvf model.tar.gz -C $(dirname ${MODEL_PATH}) $(basename ${MODEL_PATH})
 
     - name: Upload the package as an artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: model-archive
         path: ./model.tar.gz
