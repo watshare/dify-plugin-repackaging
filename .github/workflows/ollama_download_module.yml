@@ -4,88 +4,39 @@ on:
   workflow_dispatch:
     inputs:
       model_name:
-        description: 'Name of the Ollama model to download'
+        description: 'Model name to download, e.g., qwen3:0.6b'
         required: true
-        type: string
 
 jobs:
-  download-and-package:
+  download-and-package-model:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Install Ollama
-        run: |
-          wget https://ollama.com/install.sh
-          chmod +x install.sh
-          sudo ./install.sh
+    - name: Install Ollama
+      run: |
+        curl https://ollama.ai/install.sh | bash
+        sudo apt-get install ollama -y
 
-      - name: Create custom model directory
-        run: |
-          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
-          mkdir -p "$CUSTOM_MODEL_DIR"
-          echo "Created custom model directory: $CUSTOM_MODEL_DIR"
+    - name: Pull the specified model
+      env:
+        MODEL_NAME: ${{ github.event.inputs.model_name }}
+      run: |
+        ollama pull ${MODEL_NAME}
 
-      - name: Modify Ollama service configuration
-        run: |
-          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
-          sudo sed -i '/^\[Service\]/a Environment="OLLAMA_MODELS='"$CUSTOM_MODEL_DIR"'"' /etc/systemd/system/ollama.service
-          sudo systemctl daemon-reload
-          sudo systemctl restart ollama
-          echo "Updated Ollama service to use $CUSTOM_MODEL_DIR for model storage"
+    - name: Package the model
+      env:
+        MODEL_PATH: /usr/share/ollama/.ollama/models/${{ github.event.inputs.model_name }}
+      run: |
+        tar -czvf model.tar.gz -C $(dirname ${MODEL_PATH}) $(basename ${MODEL_PATH})
 
-      - name: Debug - Show Ollama service configuration
-        run: cat /etc/systemd/system/ollama.service
+    - name: Upload the package as an artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: model-archive
+        path: ./model.tar.gz
 
-      - name: Download Ollama model
-        run: ollama pull ${{ github.event.inputs.model_name }}
 
-      - name: Debug - List all Ollama models
-        run: ollama list
 
-      - name: Debug - List custom model directory
-        run: |
-          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
-          if [ -d "$CUSTOM_MODEL_DIR" ]; then
-            echo "Contents of $CUSTOM_MODEL_DIR:"
-            ls -l "$CUSTOM_MODEL_DIR"
-          else
-            echo "Custom model directory $CUSTOM_MODEL_DIR not found."
-          fi
-
-      - name: Check if model is downloaded
-        run: |
-          if ! ollama list | grep -q "${{ github.event.inputs.model_name }}"; then
-            echo "Model ${{ github.event.inputs.model_name }} not downloaded."
-            exit 1
-          fi
-
-      - name: Set safe model name
-        id: set-safe-model-name
-        run: |
-          safe_model_name=$(echo "${{ github.event.inputs.model_name }}" | tr ':' '_')
-          echo "safe_model_name=$safe_model_name" >> $GITHUB_OUTPUT
-
-      - name: Find model directory
-        id: find-model-dir
-        run: |
-          CUSTOM_MODEL_DIR="$HOME/custom_ollama_models"
-          model_dir=$(find "$CUSTOM_MODEL_DIR" -type d -name "*$(echo ${{ github.event.inputs.model_name }} | tr -d ':')*" 2>/dev/null | head -n 1)
-          if [ -z "$model_dir" ]; then
-            echo "Model directory not found in $CUSTOM_MODEL_DIR."
-            exit 1
-          fi
-          echo "model_dir=$model_dir" >> $GITHUB_OUTPUT
-
-      - name: Package the model
-        run: |
-          mkdir -p models
-          cp -r ${{ steps.find-model-dir.outputs.model_dir }} models/
-          tar -czvf "${{ steps.set-safe-model-name.outputs.safe_model_name }}.tar.gz" models
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.set-safe-model-name.outputs.safe_model_name }}-model
-          path: ${{ steps.set-safe-model-name.outputs.safe_model_name }}.tar.gz    
