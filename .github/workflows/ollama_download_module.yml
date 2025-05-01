@@ -17,7 +17,7 @@ jobs:
 
     - name: Install Ollama
       run: |
-       curl https://ollama.ai/install.sh | bash
+        curl https://ollama.ai/install.sh | bash
 
     - name: Pull the specified model
       env:
@@ -25,12 +25,28 @@ jobs:
       run: |
         ollama pull ${MODEL_NAME}
 
-    - name: Package the model
+    - name: Check current path and package the models directory
       run: |
-        tar -czvf models.tar.gz /usr/share/ollama/.ollama/models
+        echo "Current working directory: $(pwd)"
+        ls -la /usr/share/ollama/.ollama/models/
+        tar -czvf models.tar.gz /usr/share/ollama/.ollama/models/
+
+    - name: Check if models.tar.gz exists
+      run: |
+        if [ ! -f ./models.tar.gz ]; then
+          echo "Error: models.tar.gz not found!"
+          exit 1
+        fi
 
     - name: Upload the package as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: model-archive
-        path: ./model.tar.gz
+        path: ./models.tar.gz
+        if-no-files-found: warn
+        compression-level: 6
+        overwrite: false
+        include-hidden-files: false
+
+
+
