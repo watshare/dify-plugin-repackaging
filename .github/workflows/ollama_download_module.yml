@@ -27,15 +27,12 @@ jobs:
 
     - name: Package the model
       env:
-        MODEL_PATH: /usr/share/ollama/.ollama/models/${{ github.event.inputs.model_name }}
+        MODEL_PATH: /usr/share/ollama/.ollama/models/
       run: |
-        tar -czvf model.tar.gz -C $(dirname ${MODEL_PATH}) $(basename ${MODEL_PATH})
+        tar -czvf models.tar.gz /usr/share/ollama/.ollama/models/
 
     - name: Upload the package as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: model-archive
         path: ./model.tar.gz
-
-
-
