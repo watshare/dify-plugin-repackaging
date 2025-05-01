@@ -17,8 +17,7 @@ jobs:
 
     - name: Install Ollama
       run: |
-        curl https://ollama.ai/install.sh | bash
-        sudo apt-get install ollama -y
+       curl https://ollama.ai/install.sh | bash
 
     - name: Pull the specified model
       env:
