@@ -1,0 +1,43 @@
+name: Download and Zip File
+
+on:
+  workflow_dispatch:
+    inputs:
+      fileUrl:
+        description: 'URL of the file to download'
+        required: true
+
+jobs:
+  download-and-zip:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14'
+
+    - name: Install Axios
+      run: npm install axios
+
+    - name: Download file
+      id: download-file
+      env:
+        FILE_URL: ${{ github.event.inputs.fileUrl }}
+      run: |
+        npx axios "$FILE_URL" --output downloaded_file
+
+    - name: Zip the file
+      run: zip downloaded_file.zip downloaded_file
+
+    - name: Upload ZIP as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: downloaded_file.zip
+        path: downloaded_file.zip
+
+
+
