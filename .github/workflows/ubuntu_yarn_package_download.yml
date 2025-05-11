@@ -59,10 +59,14 @@ jobs:
         run: echo "cache-dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
       
       - name: Archive yarn cache directory
+        run: |
+          tar -czvf yarn-cache.tar.gz -C ${{ steps.yarn-cache-dir.outputs.cache-dir }} .
+      
+      - name: Upload yarn cache archive
         uses: actions/upload-artifact@v4
         with:
           name: yarn-cache-${{ github.event.inputs.node-version }}-${{ github.event.inputs.yarn-version }}
-          path: ${{ steps.yarn-cache-dir.outputs.cache-dir }}
+          path: yarn-cache.tar.gz
           retention-days: 7
 
 
