@@ -1,69 +1,55 @@
-name: Node.js and Yarn Installer with Cache Upload
+name: Node.js and Yarn Setup
 
 on:
   workflow_dispatch:
     inputs:
       node-version:
-        description: 'Node.js version to install'
+        description: 'Node.js version'
         required: true
-        default: '18.x'
+        default: '16.x'
       yarn-version:
-        description: 'Yarn version to install'
+        description: 'Yarn version'
         required: true
-        default: '1.22.19'
+        default: 'latest'
       packages:
-        description: 'Comma-separated list of packages to install globally (e.g., eslint@8.0.0,prettier@2.0.0)'
-        required: false
+        description: 'Packages to install (comma-separated)'
+        required: true
+        default: 'eslint@8.0.0,prettier@2.0.0'
 
 jobs:
-  install-and-cache:
+  setup-and-install:
     runs-on: ubuntu-22.04
-    
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Node.js ${{ github.event.inputs.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ github.event.inputs.node-version }}
-          cache: 'yarn'
-      
+
       - name: Install Yarn ${{ github.event.inputs.yarn-version }}
         run: |
-          npm install -g yarn@${{ github.event.inputs.yarn-version }}
-          yarn --version
-      
-      - name: Create package.json if not exists
+          npm install --global yarn@$GITHUB_EVENT_INPUT_YARN_VERSION
+
+      - name: Install packages globally
         run: |
-          if [ ! -f "package.json" ]; then
-            echo '{"name": "temp-project", "version": "1.0.0"}' > package.json
-          fi
-      
-      - name: Initialize project and create yarn.lock
-        run: |
-          yarn init -y
-          yarn install
-      
-      - name: Install global packages
-        if: github.event.inputs.packages != ''
-        run: |
-          IFS=',' read -ra PACKAGES <<< "${{ github.event.inputs.packages }}"
-          for pkg in "${PACKAGES[@]}"; do
-            yarn global add $pkg
+          IFS=',' read -ra ADDR <<< "${{ github.event.inputs.packages }}"
+          for pkg in "${ADDR[@]}"; do
+            echo "Installing package: $pkg"
+            yarn global add "$pkg"
           done
-          yarn global list
-      
-      - name: Archive yarn cache directory
+
+      - name: Get Yarn Cache Directory
+        id: get-cache-dir
         run: |
-          tar -czvf yarn-cache.tar.gz -C /home/runner/.cache/yarn/v6 .
-      
-      - name: Upload yarn cache archive
+          echo "::set-output name=CACHE_DIR::$(yarn cache dir)"
+
+      - name: Archive cache directory
         uses: actions/upload-artifact@v4
         with:
-          name: yarn-cache-${{ github.event.inputs.node-version }}-${{ github.event.inputs.yarn-version }}
-          path: yarn-cache.tar.gz
-          retention-days: 7
+          name: yarn-cache-${{ github.run_id }}
+          path: ${{ steps.get-cache-dir.outputs.CACHE_DIR }}
 
 
 
