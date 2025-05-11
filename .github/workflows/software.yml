@@ -15,23 +15,32 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '14'
-
-    - name: Install Axios
-      run: npm install axios
-
-    - name: Download file
+    - name: Download file using curl
       id: download-file
       env:
         FILE_URL: ${{ github.event.inputs.fileUrl }}
       run: |
-        npx axios "$FILE_URL" --output downloaded_file
+        curl -L "$FILE_URL" -o downloaded_file
 
-    - name: Zip the file
-      run: zip downloaded_file.zip downloaded_file
+    - name: Check if the downloaded file is a zip
+      id: check_zip
+      run: |
+        if [[ $(file --mime-type -b downloaded_file) == "application/zip" ]]; then
+          echo "::set-output name=is_zip::true"
+        else
+          echo "::set-output name=is_zip::false"
+        fi
+
+    - name: Unzip the file if it's a zip
+      if: steps.check_zip.outputs.is_zip == 'true'
+      run: unzip downloaded_file -d extracted_files
+
+    - name: Create directory for non-zip files
+      if: steps.check_zip.outputs.is_zip == 'false'
+      run: mkdir -p extracted_files && mv downloaded_file extracted_files/
+
+    - name: Zip the contents
+      run: zip -r downloaded_file.zip extracted_files/
 
     - name: Upload ZIP as an artifact
       uses: actions/upload-artifact@v4
