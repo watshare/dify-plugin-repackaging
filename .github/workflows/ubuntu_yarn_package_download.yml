@@ -42,7 +42,8 @@ jobs:
       
       - name: Initialize project and create yarn.lock
         run: |
-          yarn install --mode=skip-build
+          yarn init -y
+          yarn install
       
       - name: Install global packages
         if: github.event.inputs.packages != ''
