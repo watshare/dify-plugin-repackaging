@@ -54,13 +54,9 @@ jobs:
           done
           yarn global list
       
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir
-        run: echo "cache-dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-      
       - name: Archive yarn cache directory
         run: |
-          tar -czvf yarn-cache.tar.gz -C ${{ steps.yarn-cache-dir.outputs.cache-dir }} .
+          tar -czvf yarn-cache.tar.gz -C /home/runner/.cache/yarn/v6 .
       
       - name: Upload yarn cache archive
         uses: actions/upload-artifact@v4
