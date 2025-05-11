@@ -34,17 +34,18 @@ jobs:
           npm install -g yarn@${{ github.event.inputs.yarn-version }}
           yarn --version
       
-      - name: Check and create yarn.lock if missing
+      - name: Create package.json if not exists
         run: |
-          if [ ! -f yarn.lock ]; then
-            echo "yarn.lock file is missing. Creating one..."
-            if [ ! -f package.json ]; then
-              echo "package.json file is missing. Initializing a new project..."
-              yarn init -y
-            fi
-            yarn install
+          if [ ! -f "package.json" ]; then
+            echo '{"name": "temp-project", "version": "1.0.0"}' > package.json
           fi
-
+      
+      - name: Create yarn.lock if not exists
+        run: |
+          if [ ! -f "yarn.lock" ]; then
+            yarn install --mode=skip-build --no-lockfile
+          fi
+      
       - name: Install global packages
         if: github.event.inputs.packages != ''
         run: |
@@ -63,4 +64,4 @@ jobs:
         with:
           name: yarn-cache-${{ github.event.inputs.node-version }}-${{ github.event.inputs.yarn-version }}
           path: ${{ steps.yarn-cache-dir.outputs.cache-dir }}
-          retention-days: 1
+          retention-days: 7    
