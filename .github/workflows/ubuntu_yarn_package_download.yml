@@ -1,0 +1,55 @@
+name: Node.js and Yarn Installer with Cache Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      node-version:
+        description: 'Node.js version to install'
+        required: true
+        default: '18.x'
+      yarn-version:
+        description: 'Yarn version to install'
+        required: true
+        default: '1.22.19'
+      packages:
+        description: 'Comma-separated list of packages to install globally (e.g., eslint@8.0.0,prettier@2.0.0)'
+        required: false
+
+jobs:
+  install-and-cache:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js ${{ github.event.inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ github.event.inputs.node-version }}
+          cache: 'yarn'
+      
+      - name: Install Yarn ${{ github.event.inputs.yarn-version }}
+        run: |
+          npm install -g yarn@${{ github.event.inputs.yarn-version }}
+          yarn --version
+      
+      - name: Install global packages
+        if: github.event.inputs.packages != ''
+        run: |
+          IFS=',' read -ra PACKAGES <<< "${{ github.event.inputs.packages }}"
+          for pkg in "${PACKAGES[@]}"; do
+            yarn global add $pkg
+          done
+          yarn global list
+      
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir
+        run: echo "cache-dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+      
+      - name: Archive yarn cache directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: yarn-cache-${{ github.event.inputs.node-version }}-${{ github.event.inputs.yarn-version }}
+          path: ${{ steps.yarn-cache-dir.outputs.cache-dir }}
+          retention-days: 1    
