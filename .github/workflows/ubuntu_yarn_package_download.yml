@@ -40,11 +40,9 @@ jobs:
             echo '{"name": "temp-project", "version": "1.0.0"}' > package.json
           fi
       
-      - name: Create yarn.lock if not exists
+      - name: Initialize project and create yarn.lock
         run: |
-          if [ ! -f "yarn.lock" ]; then
-            yarn install --mode=skip-build --no-lockfile
-          fi
+          yarn install --mode=skip-build
       
       - name: Install global packages
         if: github.event.inputs.packages != ''
@@ -64,4 +62,7 @@ jobs:
         with:
           name: yarn-cache-${{ github.event.inputs.node-version }}-${{ github.event.inputs.yarn-version }}
           path: ${{ steps.yarn-cache-dir.outputs.cache-dir }}
-          retention-days: 7    
+          retention-days: 7
+
+
+
